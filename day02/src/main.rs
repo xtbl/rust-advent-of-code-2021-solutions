@@ -11,6 +11,20 @@
 
 // after following these instructions, you would have a horizontal position of 15 and a depth of 10. (Multiplying these together produces 150.)
 
+// TODO:
+// ✅ get inputs
+// ✅ parse inputs into direction, value
+// ✅ process parsed inputs: + - by direction
+// ✅ multiply processed horizontal and depth 
+// ✅ implement part 2 rules
+
+//struct SubmarineMovement
+// completed_movements<Vec<[string, i32]>>
+// impl move_to_position(string, i32)
+// current_position_horizontal
+// current_position_depth
+// get multiplied position
+
 
 use std::env;
 use std::fs::File;
@@ -37,13 +51,17 @@ fn convert_line_to_movement(line: &str) -> (&str, i32)  {
 fn process_movement_instructions(lines: Vec<String>) -> (i32, i32) {
     let mut horizontal_position = 0;
     let mut depth_position = 0;
+    let mut aim = 0;
 
     for line in lines {
         let movement: (&str, i32) = convert_line_to_movement(&line);
         match movement {
-            ("forward", _) => horizontal_position = horizontal_position + movement.1,
-            ("up", _) => depth_position = depth_position - movement.1,
-            ("down", _) => depth_position = depth_position + movement.1,
+            ("forward", _) => {
+                horizontal_position = horizontal_position + movement.1;
+                depth_position = depth_position + (aim * movement.1);
+            },            
+            ("up", _) => aim = aim - movement.1,
+            ("down", _) => aim = aim + movement.1,
             (&_, _) => horizontal_position = horizontal_position
         }
     }
@@ -53,13 +71,6 @@ fn process_movement_instructions(lines: Vec<String>) -> (i32, i32) {
 fn get_final_position_multiplied(final_position: (i32, i32)) -> i32 {
     final_position.0 * final_position.1
 }
-
-//struct SubmarineMovement
-// completed_movements<Vec<[string, i32]>>
-// impl move_to_position(string, i32)
-// current_position_horizontal
-// current_position_depth
-// get multiplied position
 
 #[cfg(test)]
 mod tests {
@@ -87,7 +98,7 @@ mod tests {
         let lines_file = get_lines_from_file("input.txt");
         let lines = lines_file.unwrap(); 
         let processed_movements = process_movement_instructions(lines);
-        assert_eq!(processed_movements, (2162, 1051));
+        assert_eq!(processed_movements, (2162, 987457));
     }
 
     #[test]
@@ -96,11 +107,6 @@ mod tests {
         let lines = lines_file.unwrap(); 
         let processed_movements = process_movement_instructions(lines);
         let final_position = get_final_position_multiplied(processed_movements);
-        assert_eq!(final_position, 2272262);
+        assert_eq!(final_position, 2134882034);
     }
 }
-// TODO:
-// ✅ get inputs
-// ✅ parse inputs into direction, value
-// ✅ process parsed inputs: + - by direction
-// ✅ multiply processed horizontal and depth 

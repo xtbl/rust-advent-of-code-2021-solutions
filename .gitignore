@@ -1,0 +1,10 @@
+
+.metals/metals.lock.db
+.metals/metals.log
+.metals/metals.mv.db
+day01/.metals/metals.log
+day01/.metals/metals.mv.db
+day02/target/debug
+day02/target
+day03/.metals
+day03/target

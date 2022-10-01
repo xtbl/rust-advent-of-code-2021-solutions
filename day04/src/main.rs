@@ -93,7 +93,7 @@ fn get_all_boards_together(filename: impl AsRef<Path>) -> Result<Vec<(i32, bool)
 // }
 
 fn board_loader(board_values: Vec<(i32, bool)>) -> Board {
-    let mut iter = board_values.rchunks_exact_mut(5);
+    let mut iter = board_values.rchunks(5);
     println!("------------- chunks 01 {:?}", iter.next());
     println!("------------- chunks 02 {:?}", iter.next());
     println!("------------- chunks 03 {:?}", iter.next());
@@ -101,34 +101,80 @@ fn board_loader(board_values: Vec<(i32, bool)>) -> Board {
     let mut new_board = Board {
         ..Default::default()
     };
-    new_board.load_board_data(iter.next());
+    let board_content = iter.next().unwrap();
+    // convert to board vector
+    new_board.load_board_data(board_content.to_vec());
     new_board
 }
 
 #[derive(Debug, Default)]
 struct Board {
-    board_values: Vec<Vec<i32>>,
+    board_values: Vec<Vec<(i32, bool)>>,
     has_complete_row: bool,
     has_complete_col: bool,
     is_winning_board: bool
 }
 
 pub trait LoadBoardData {
-    fn load_board_data(&mut self, new_board_values: Vec<Vec<i32>>);
+    fn load_board_data(&mut self, new_board_values: Vec<(i32, bool)>);
 }
 
 pub trait GetBoardData {
-    fn get_board_data(&self) -> Vec<Vec<i32>>;
+    fn get_board_data(&self) -> Vec<Vec<(i32, bool)>>;
 }
 
 impl LoadBoardData for Board {
-   fn load_board_data(&mut self, new_board_values: Vec<Vec<i32>>) {
-        self.board_values = new_board_values;
+   fn load_board_data(&mut self, new_board_values: Vec<(i32, bool)>) {
+        let row_col_size = 5;
+        // https://stackoverflow.com/questions/65191637/idiomatic-way-to-insert-after-a-certain-element-in-vector 
+
+        // one board is 5 rows x 5 cols
+        // index 0...24 - 0 or index % 5 === 0
+        // let mut vec_2d: Vec<Vec<(i32, bool)>> = vec![vec![(0, false)]];
+        let default_board_value = (0,false);
+        let default_board_row:Vec<(i32, bool)> = (0..row_col_size).map(|_| default_board_value).collect();
+        let mut default_board_2d: Vec<Vec<(i32, bool)>> = (0..row_col_size).map(|_| default_board_row.clone()).collect();
+        // set new board values
+        default_board_2d[0][0] = (2, true);
+        // how to replace values using map?
+        // default_board_2d.map() - get index 0, replace with first window of values
+        let mut chunked_new_board_values = new_board_values.chunks(row_col_size);
+
+        //TODO: convert to vec vec board format - replacing default row tuples with chunked new board values rows
+        let mut edited_board_2d: Vec<Vec<(i32, bool)>> = default_board_2d.clone().into_iter().enumerate().map({
+            |(index, x)| {
+
+                println!("[inside edited board index] --> {:?}", index);
+                println!("[inside edited board x] --> {:?}", x);
+                // println!("[inside edited board chunked_new_board_values] --> {:?}", chunked_new_board_values.next().unwrap_or(&vec![(0,false)]));
+                chunked_new_board_values.next().unwrap_or(&vec![(0,false)]).to_vec()} 
+        }).collect();
+        
+        println!("[default_board_2d] --> {:?}", default_board_2d);
+        println!("[new_board_values] --> {:?}", new_board_values);
+        // for row in new_board_values {
+        //     for col in row {
+        //         vec_2d.push(col);
+        //     }
+        // }
+
+        // to iterate
+        // https://stackoverflow.com/questions/72843130/how-to-make-iterate-through-a-2d-vector
+        // for row in new_board_values {
+        //     for col in row {
+        //         println!("row {:?} - col {:?}", row.0, col.1);
+        //     }
+        // }
+
+        // self.board_values = vec![ vec![(1,false), (2, true)], vec![(1,false), (2, true)] ];
+        println!("[edited_board_2d] --> {:?}", edited_board_2d);
+        self.board_values = edited_board_2d;
+
    }
 }
 
 impl GetBoardData for Board {
-   fn get_board_data(&self) -> Vec<Vec<i32>> {
+   fn get_board_data(&self) -> Vec<Vec<(i32, bool)>> {
         self.board_values.clone()
    }
 }
@@ -140,24 +186,33 @@ impl GetBoardData for Board {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_board_loader() {
-        let mut new_board = Board {
-            ..Default::default()
-        };
-        new_board.load_board_data(vec![vec![1,1,2]]);
-        let board_data = new_board.get_board_data();
-        assert_eq!(board_data, [[1,1,2]]);
-    }
+    // #[test]
+    // fn test_board_loader() {
+    //     let mut new_board = Board {
+    //         ..Default::default()
+    //     };
+    //     new_board.load_board_data(vec![vec![1,1,2]]);
+    //     let board_data = new_board.get_board_data();
+    //     assert_eq!(board_data, [[1,1,2]]);
+    // }
 
     #[test]
     fn test_load_board_struct_impl() {
         let mut new_board = Board {
             ..Default::default()
         };
-        new_board.load_board_data(vec![vec![1,1,2]]);
+        new_board.load_board_data(vec![
+            (0, false), (0, false),(0, false),(0, false),(0, false),
+            (1, false), (1, false),(1, false),(1, false),(1, false),
+            (2, false), (2, false),(2, false),(2, false),(2, false),
+            (3, false), (3, false),(3, false),(3, false),(3, false),
+            (4, false), (4, false),(4, false),(4, false),(4, false)
+        ]);
+
+        let input_to_compare = vec![[(0, false), (0, false), (0, false), (0, false), (0, false)], [(1, false), (1, false), (1, false), (1, false), (1, false)], [(2, false), (2, false), (2, false), (2, false), (2, false)], [(3, false), (3, false), (3, false), (3, false), (3, false)], [(4, false), (4, false), (4, false), (4, false), (4, false)]];
         let result = new_board.get_board_data();
-        assert_eq!(result, [[1,1,2]]);
+        println!("--- result; {:?}", result);
+        assert_eq!(result[0], input_to_compare[0]);
     }
 
     #[test]
@@ -174,7 +229,7 @@ mod tests {
         // let line = get_numbers_line.unwrap();
         let all_boards_together = get_all_boards_together("mock.txt");
         let all_boards_together_unwrap = all_boards_together.unwrap();
-        let expected_result = [(1, false)];
+        let expected_result = [(22, false), (8, false), (21, false), (6, false), (1, false), (3, false), (9, false), (19, false), (20, false), (14, false), (14, false), (10, false), (18, false), (22, false), (2, false)];
         assert_eq!(all_boards_together_unwrap, expected_result);
     }
 

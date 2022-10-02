@@ -58,34 +58,24 @@ fn get_numbers_to_draw(filename: impl AsRef<Path>) -> Result<Vec<i32>> {
     Ok(splitted_mapped)
 }
 
-// discard first line with numbers
-// then start looping  or mapping and  processing the rest
 fn get_all_boards_together(filename: impl AsRef<Path>) -> Result<Vec<(i32, bool)>> {
     let lines_file:Result<Vec<String>> = BufReader::new(File::open(filename)?).lines().collect();
-    // load real board
     let lines = lines_file.unwrap();
-    // loop through lines
-    // let mut line_counter = 0;
-
+    // println!("-------------- lines: {:?}", lines);
     let mapped_lines_into_ints:Vec<_> = lines.into_iter().map(|current_line| {
+        // print!("-------------- current_line: {:?}", current_line);
         let split: Vec<&str> = current_line.split_whitespace().collect();
         let splitted_map: Vec<_> = split.into_iter().map(|x| x.parse::<i32>().unwrap_or(0)).collect();
         splitted_map
     }).filter(|x| x.len() == 5).collect();
-    let mut mapped_lines_cloned: Vec<(i32, bool)> = mapped_lines_into_ints.into_iter().map(|x| (x[0], false)).collect::<Vec<(i32, bool)>>();
-    // let mut mapped_lines_cloned = mapped_lines_into_ints;
+    // println!("-------------- mapped_lines_into_ints: {:?}", mapped_lines_into_ints);
+    let flatten_mapped_lines_into_ints:Vec<i32> = mapped_lines_into_ints.into_iter().flat_map(|array| array.into_iter()).collect();
+    // println!("-------------- flatten_mapped_lines_into_ints: {:?}", flatten_mapped_lines_into_ints);
 
-
-    // TODO:
-    // do window 5 to group filtered arrays
-    // what if we return an iter? https://docs.rs/windows/0.6.0/windows/struct.Array.html#method.rchunks_exact_mut
-    // or what if we return 2 dimensional arrays/boards on each iter? to be directly inserted in the boards list
-    // how to build a board? [0, [iter.next()]], [1, [iter.next()]], [2, [iter.next()]]...[4...]
-    // what if we do the rchunks part in the receiving fn and handle that there
-    // Ok(mapped_lines_into_ints)
-    // Ok(iter)
+    let mut mapped_lines_cloned: Vec<(i32, bool)> = 
+        flatten_mapped_lines_into_ints.into_iter().map(|x| (x, false)).collect::<Vec<(i32, bool)>>();
+    // println!("-------------- mapped_lines_cloned: {:?}", mapped_lines_cloned);
     Ok(mapped_lines_cloned)
-    // Ok(vec![])
 }
 
 // fn load_board_data(arg: Type) -> RetType {
@@ -94,15 +84,10 @@ fn get_all_boards_together(filename: impl AsRef<Path>) -> Result<Vec<(i32, bool)
 
 fn board_loader(board_values: Vec<(i32, bool)>) -> Board {
     let mut iter = board_values.rchunks(5);
-    println!("------------- chunks 01 {:?}", iter.next());
-    println!("------------- chunks 02 {:?}", iter.next());
-    println!("------------- chunks 03 {:?}", iter.next());
-
     let mut new_board = Board {
         ..Default::default()
     };
     let board_content = iter.next().unwrap();
-    // convert to board vector
     new_board.load_board_data(board_content.to_vec());
     new_board
 }
@@ -126,50 +111,15 @@ pub trait GetBoardData {
 impl LoadBoardData for Board {
    fn load_board_data(&mut self, new_board_values: Vec<(i32, bool)>) {
         let row_col_size = 5;
-        // https://stackoverflow.com/questions/65191637/idiomatic-way-to-insert-after-a-certain-element-in-vector 
-
-        // one board is 5 rows x 5 cols
-        // index 0...24 - 0 or index % 5 === 0
-        // let mut vec_2d: Vec<Vec<(i32, bool)>> = vec![vec![(0, false)]];
         let default_board_value = (0,false);
         let default_board_row:Vec<(i32, bool)> = (0..row_col_size).map(|_| default_board_value).collect();
-        let mut default_board_2d: Vec<Vec<(i32, bool)>> = (0..row_col_size).map(|_| default_board_row.clone()).collect();
-        // set new board values
-        default_board_2d[0][0] = (2, true);
-        // how to replace values using map?
-        // default_board_2d.map() - get index 0, replace with first window of values
+        let default_board_2d: Vec<Vec<(i32, bool)>> = (0..row_col_size).map(|_| default_board_row.clone()).collect();
         let mut chunked_new_board_values = new_board_values.chunks(row_col_size);
-
-        //TODO: convert to vec vec board format - replacing default row tuples with chunked new board values rows
-        let mut edited_board_2d: Vec<Vec<(i32, bool)>> = default_board_2d.clone().into_iter().enumerate().map({
-            |(index, x)| {
-
-                println!("[inside edited board index] --> {:?}", index);
-                println!("[inside edited board x] --> {:?}", x);
-                // println!("[inside edited board chunked_new_board_values] --> {:?}", chunked_new_board_values.next().unwrap_or(&vec![(0,false)]));
-                chunked_new_board_values.next().unwrap_or(&vec![(0,false)]).to_vec()} 
+        //TODO: load multiple structs using this method
+        let edited_board_2d: Vec<Vec<(i32, bool)>> = default_board_2d.clone().into_iter().enumerate().map({
+            |_| chunked_new_board_values.next().unwrap_or(&vec![(0,false)]).to_vec()
         }).collect();
-        
-        println!("[default_board_2d] --> {:?}", default_board_2d);
-        println!("[new_board_values] --> {:?}", new_board_values);
-        // for row in new_board_values {
-        //     for col in row {
-        //         vec_2d.push(col);
-        //     }
-        // }
-
-        // to iterate
-        // https://stackoverflow.com/questions/72843130/how-to-make-iterate-through-a-2d-vector
-        // for row in new_board_values {
-        //     for col in row {
-        //         println!("row {:?} - col {:?}", row.0, col.1);
-        //     }
-        // }
-
-        // self.board_values = vec![ vec![(1,false), (2, true)], vec![(1,false), (2, true)] ];
-        println!("[edited_board_2d] --> {:?}", edited_board_2d);
         self.board_values = edited_board_2d;
-
    }
 }
 
@@ -179,6 +129,32 @@ impl GetBoardData for Board {
    }
 }
 
+fn load_data_into_boards(boards_data: Vec<(i32, bool)>) -> Vec<Board> {
+    let full_board_item_amount = 25;
+    let mut iter_boards_data = boards_data.chunks(full_board_item_amount);
+    let mut all_boards: Vec<Board> = vec![];
+    let mapped_boards: Vec<Board> = iter_boards_data.map(|board_data| {
+        let mut new_board = Board {
+            ..Default::default()
+        };
+        
+        new_board.load_board_data(board_data.to_vec());
+        new_board
+    }).collect();
+    // get items
+    // separate in chunks
+    // create board
+    // fill board with chunks
+    // add board to board vector
+    // repeat until no more chunks
+
+    // all_boards
+    println!("--------- mapped_boards {:?}", mapped_boards);
+
+    mapped_boards
+
+}
+
 
 
 
@@ -186,18 +162,27 @@ impl GetBoardData for Board {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn test_board_loader() {
-    //     let mut new_board = Board {
-    //         ..Default::default()
-    //     };
-    //     new_board.load_board_data(vec![vec![1,1,2]]);
-    //     let board_data = new_board.get_board_data();
-    //     assert_eq!(board_data, [[1,1,2]]);
-    // }
+    #[test]
+    fn test_load_data_into_boards() {
+        let all_boards_together = get_all_boards_together("mock.txt");
+        let all_boards_together_unwrap = all_boards_together.unwrap();
+
+        let loaded_boards = load_data_into_boards(all_boards_together_unwrap);
+
+        let result = vec![vec![(1, false)]];
+
+        // expected board result for the first board loaded, like this but with real values
+        let expected_result = vec![
+            [(0, false), (0, false), (0, false), (0, false), (0, false)], 
+            [(2, false), (2, false), (2, false), (2, false), (2, false)], 
+            [(1, false), (1, false), (1, false), (1, false), (1, false)], 
+            [(3, false), (3, false), (3, false), (3, false), (3, false)], 
+            [(4, false), (4, false), (4, false), (4, false), (4, false)]];
+        assert_eq!(result[0], expected_result[0]);
+    }
 
     #[test]
-    fn test_load_board_struct_impl() {
+    fn test_load_board_data() {
         let mut new_board = Board {
             ..Default::default()
         };
@@ -206,12 +191,15 @@ mod tests {
             (1, false), (1, false),(1, false),(1, false),(1, false),
             (2, false), (2, false),(2, false),(2, false),(2, false),
             (3, false), (3, false),(3, false),(3, false),(3, false),
-            (4, false), (4, false),(4, false),(4, false),(4, false)
-        ]);
+            (4, false), (4, false),(4, false),(4, false),(4, false)]);
 
-        let input_to_compare = vec![[(0, false), (0, false), (0, false), (0, false), (0, false)], [(1, false), (1, false), (1, false), (1, false), (1, false)], [(2, false), (2, false), (2, false), (2, false), (2, false)], [(3, false), (3, false), (3, false), (3, false), (3, false)], [(4, false), (4, false), (4, false), (4, false), (4, false)]];
+        let input_to_compare = vec![
+            [(0, false), (0, false), (0, false), (0, false), (0, false)], 
+            [(1, false), (1, false), (1, false), (1, false), (1, false)], 
+            [(2, false), (2, false), (2, false), (2, false), (2, false)], 
+            [(3, false), (3, false), (3, false), (3, false), (3, false)], 
+            [(4, false), (4, false), (4, false), (4, false), (4, false)]];
         let result = new_board.get_board_data();
-        println!("--- result; {:?}", result);
         assert_eq!(result[0], input_to_compare[0]);
     }
 
@@ -225,11 +213,12 @@ mod tests {
 
     #[test]
     fn test_get_all_boards_together() {
-        // let get_numbers_line = get_numbers_to_draw("mock.txt");
-        // let line = get_numbers_line.unwrap();
         let all_boards_together = get_all_boards_together("mock.txt");
         let all_boards_together_unwrap = all_boards_together.unwrap();
-        let expected_result = [(22, false), (8, false), (21, false), (6, false), (1, false), (3, false), (9, false), (19, false), (20, false), (14, false), (14, false), (10, false), (18, false), (22, false), (2, false)];
+        // let expected_result = [(22, false), (8, false), (21, false), (6, false), (1, false), (3, false), (9, false), (19, false), (20, false), (14, false), (14, false), (10, false), (18, false), (22, false), (2, false)];
+        // let expected_result = [(22, false), (13, false), (17, false), (11, false), (0, false), (8, false), (2, false), (23, false), (4, false), (24, false), (21, false), (9, false), (14, false), (16, false), (7, false), (6, false), (10, false), (3, false),(18, false),(5, false), 
+        //     (1, false), (12, false), (20, false), (15, false), (19, false)];
+         let expected_result = [(22, false), (13, false), (17, false), (11, false), (0, false), (8, false), (2, false), (23, false), (4, false), (24, false), (21, false), (9, false), (14, false), (16, false), (7, false), (6, false), (10, false), (3, false), (18, false), (5, false), (1, false), (12, false), (20, false), (15, false), (19, false), (3, false), (15, false), (0, false), (2, false), (22, false), (9, false), (18, false), (13, false), (17, false), (5, false), (19, false), (8, false), (7, false), (25, false), (23, false), (20, false), (11, false), (10, false), (24, false), (4, false), (14, false), (21, false), (16, false), (12, false), (6, false), (14, false), (21, false), (17, false), (24, false), (4, false), (10, false), (16, false), (15, false), (9, false), (19, false), (18, false), (8, false), (23, false), (26, false), (20, false), (22, false), (11, false), (13, false), (6, false), (5, false), (2, false), (0, false), (12, false), (3, false), (7, false)];
         assert_eq!(all_boards_together_unwrap, expected_result);
     }
 

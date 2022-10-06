@@ -92,12 +92,13 @@ fn board_loader(board_values: Vec<(i32, bool)>) -> Board {
     new_board
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct Board {
     board_values: Vec<Vec<(i32, bool)>>,
     has_complete_row: bool,
     has_complete_col: bool,
-    is_winning_board: bool
+    is_winning_board: bool,
+    lastMarkedNumber: i32
 }
 
 pub trait LoadBoardData {
@@ -108,6 +109,18 @@ pub trait GetBoardData {
     fn get_board_data(&self) -> Vec<Vec<(i32, bool)>>;
 }
 
+pub trait MarkBoard {
+    fn mark_board(&mut self, mark_num: i32) -> &mut Self;
+}
+
+pub trait checkWinning {
+    fn check_winning(&self) -> bool;
+}
+
+pub trait calculateScore {
+    fn calculate_score(&self) -> i32;
+}
+
 impl LoadBoardData for Board {
    fn load_board_data(&mut self, new_board_values: Vec<(i32, bool)>) {
         let row_col_size = 5;
@@ -115,7 +128,6 @@ impl LoadBoardData for Board {
         let default_board_row:Vec<(i32, bool)> = (0..row_col_size).map(|_| default_board_value).collect();
         let default_board_2d: Vec<Vec<(i32, bool)>> = (0..row_col_size).map(|_| default_board_row.clone()).collect();
         let mut chunked_new_board_values = new_board_values.chunks(row_col_size);
-        //TODO: load multiple structs using this method
         let edited_board_2d: Vec<Vec<(i32, bool)>> = default_board_2d.clone().into_iter().enumerate().map({
             |_| chunked_new_board_values.next().unwrap_or(&vec![(0,false)]).to_vec()
         }).collect();
@@ -129,30 +141,113 @@ impl GetBoardData for Board {
    }
 }
 
+impl MarkBoard for Board {
+    fn mark_board(&mut self, mark_num: i32) -> &mut Self {
+        let mut board_data = self.get_board_data();
+        let marked_board_data:Vec<Vec<(i32, bool)>> = board_data.iter_mut()
+            .map({|row| row.iter_mut()
+                .map({|(num, is_marked)|
+                    if num == &mark_num {
+                        (num.clone(), true)
+                    } else {
+                        (num.clone(), is_marked.clone())
+                    }
+            }).collect()
+        }).collect();
+        self.board_values = marked_board_data;
+        self.lastMarkedNumber = mark_num;
+        self
+    }
+}
+
+impl checkWinning for Board {
+    fn check_winning(&self) -> bool {
+        let board_data = &self.get_board_data();
+        let mut winning_row = false;
+        for row in board_data {
+            winning_row = row.iter().all(|(_, marked)| *marked);
+            if winning_row {
+                break;
+            }
+        }
+
+        let board_data_2 = &self.get_board_data();
+        let mut winning_col = false;
+          for row in 0..5 {
+            let mut build_column:Vec<bool> = vec![];
+            for col in 0..5 {
+                build_column.push(board_data_2[col][row].1);
+           }
+            winning_col = build_column.iter().all(|x| *x);
+            if winning_col {
+                break;
+            }
+        }
+        winning_row || winning_col
+    }
+}
+
 fn load_data_into_boards(boards_data: Vec<(i32, bool)>) -> Vec<Board> {
     let full_board_item_amount = 25;
     let mut iter_boards_data = boards_data.chunks(full_board_item_amount);
-    let mut all_boards: Vec<Board> = vec![];
     let mapped_boards: Vec<Board> = iter_boards_data.map(|board_data| {
         let mut new_board = Board {
             ..Default::default()
         };
-        
         new_board.load_board_data(board_data.to_vec());
         new_board
     }).collect();
-    // get items
-    // separate in chunks
-    // create board
-    // fill board with chunks
-    // add board to board vector
-    // repeat until no more chunks
-
-    // all_boards
     println!("--------- mapped_boards {:?}", mapped_boards);
 
     mapped_boards
+}
 
+
+impl calculateScore for Board  {
+    fn calculate_score (&self) -> i32 {
+        let mut board_data = self.get_board_data();
+        let mut unmarked_sum = 0;
+        let marked_board_data:Vec<Vec<(i32, bool)>> = board_data.iter_mut()
+            .map({|row| row.iter_mut()
+                .map({|(num, is_marked)| {
+                    if *is_marked == true {
+                        unmarked_sum = unmarked_sum + num.clone() as i32; 
+                    }            
+                    (num.clone(), is_marked.clone())
+                }
+                }).collect()
+            }).collect();
+        let last_number = self.lastMarkedNumber;
+        println!("unmarked_sum: {:?}", unmarked_sum);
+        println!("last_number: {:?}", last_number);
+        unmarked_sum * last_number
+    }
+}
+
+fn run_game(data_file: &str) -> i32 {
+    let all_boards_together = get_all_boards_together(data_file).unwrap();
+    let loaded_boards = load_data_into_boards(all_boards_together);
+    let mut loaded_boards_cloned: Vec<Board> = loaded_boards.into_iter().map(|x| x.clone()).collect();
+    // let first_board_content = loaded_boards[0].get_board_data();
+
+    let get_numbers_line = get_numbers_to_draw(data_file).unwrap();
+    println!("--- get_numbers_line: {:?} ", get_numbers_line);
+
+    
+    let numbers_iter = get_numbers_line.iter();
+    // let mut loaded_boards_iter = loaded_boards_cloned.iter();
+    
+    for mark_num in numbers_iter {
+        for loaded_board in loaded_boards_cloned {
+            println!("--- num iter: {:?} ", mark_num);
+            loaded_board.mark_board(*mark_num);
+        }
+    }
+
+
+    println!("------------------ ");
+    // println!("--- loaded_boards: {:?} ", loaded_boards_cloned);
+    10
 }
 
 
@@ -162,23 +257,102 @@ fn load_data_into_boards(boards_data: Vec<(i32, bool)>) -> Vec<Board> {
 mod tests {
     use super::*;
 
+//TODO: get numbers and compare with boards, mark boards, check if winning
+
+    #[test]
+    fn test_run_game() {
+
+
+        
+        
+        assert_eq!(run_game("mock.txt"), 20);
+    }
+
+    #[test]
+    fn test_calculate_score() {
+        let mut new_board = Board {
+            ..Default::default()
+        };
+        // row
+        new_board.load_board_data(vec![
+            (1, false), (1, false),(1, false),(1, false),(1, false),
+            (1, false), (1, false),(1, false),(1, false),(1, false),
+            (2, true), (2, true),(2, true),(2, true),(2, true),
+            (1, false), (1, false),(1, false),(1, false),(1, false),
+            (1, false), (1, false),(1, false),(1, false),(1, false)]);
+        
+        new_board.lastMarkedNumber = 2;
+
+        // 30 * last number marked
+        assert_eq!(new_board.calculate_score(), 20);
+    }
+
+
+
+    #[test]
+    fn test_check_winning() {
+        let mut new_board = Board {
+            ..Default::default()
+        };
+        // row
+        new_board.load_board_data(vec![
+            (0, false), (0, false),(0, false),(0, false),(0, false),
+            (1, false), (1, false),(1, false),(1, false),(1, false),
+            (2, true), (2, true),(2, true),(2, true),(2, true),
+            (1, false), (1, false),(3, false),(1, false),(1, false),
+            (4, false), (4, false),(4, false),(4, false),(4, false)]);
+        
+        assert_eq!(new_board.check_winning(), true);
+
+        // col
+        new_board.load_board_data(vec![
+            (0, true), (0, false),(0, false),(0, false),(0, false),
+            (1, true), (1, false),(1, false),(1, false),(1, false),
+            (2, true), (2, false),(2, false),(2, false),(2, false),
+            (1, true), (1, false),(3, false),(1, false),(1, false),
+            (4, true), (4, false),(4, false),(4, false),(4, false)]);
+        
+        assert_eq!(new_board.check_winning(), true);
+    }
+
+    #[test]
+    fn test_mark_board() {
+        let mut new_board = Board {
+            ..Default::default()
+        };
+        new_board.load_board_data(vec![
+            (0, false), (0, false),(0, false),(0, false),(0, false),
+            (1, false), (1, false),(1, false),(1, false),(1, false),
+            (2, false), (2, false),(2, false),(2, false),(2, false),
+            (1, false), (1, false),(3, false),(1, false),(1, false),
+            (4, false), (4, false),(4, false),(4, false),(4, false)]);
+
+        let input_to_compare = vec![
+            [(0, false), (0, false), (0, false), (0, false), (0, false)], 
+            [(1, false), (1, false), (1, false), (1, false), (1, false)], 
+            [(2, false), (2, false), (2, false), (2, false), (2, false)], 
+            [(1, false), (1, false), (3, true), (1, false), (1, false)], 
+            [(4, false), (4, false), (4, false), (4, false), (4, false)]];
+        let mark_num = 3;
+        new_board.mark_board(mark_num);
+        let result = new_board.get_board_data();
+        assert_eq!(result[3], input_to_compare[3]);
+    }
+
+
     #[test]
     fn test_load_data_into_boards() {
         let all_boards_together = get_all_boards_together("mock.txt");
-        let all_boards_together_unwrap = all_boards_together.unwrap();
+        let loaded_boards = load_data_into_boards(all_boards_together.unwrap());
+        let first_board_content = loaded_boards[0].get_board_data();
+        let expected_result = [
+            [(22, false), (13, false), (17, false), (11, false), (0, false)], 
+            [(8, false), (2, false), (23, false), (4, false), (24, false)], 
+            [(21, false), (9, false), (14, false), (16, false), (7, false)], 
+            [(6, false), (10, false), (3, false), (18, false), (5, false)], 
+            [(1, false), (12, false), (20, false), (15, false), (19, false)]];
 
-        let loaded_boards = load_data_into_boards(all_boards_together_unwrap);
-
-        let result = vec![vec![(1, false)]];
-
-        // expected board result for the first board loaded, like this but with real values
-        let expected_result = vec![
-            [(0, false), (0, false), (0, false), (0, false), (0, false)], 
-            [(2, false), (2, false), (2, false), (2, false), (2, false)], 
-            [(1, false), (1, false), (1, false), (1, false), (1, false)], 
-            [(3, false), (3, false), (3, false), (3, false), (3, false)], 
-            [(4, false), (4, false), (4, false), (4, false), (4, false)]];
-        assert_eq!(result[0], expected_result[0]);
+        assert_eq!(first_board_content, expected_result);
     }
 
     #[test]

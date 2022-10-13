@@ -110,7 +110,7 @@ pub trait GetBoardData {
 }
 
 pub trait MarkBoard {
-    fn mark_board(&mut self, mark_num: i32) -> &mut Self;
+    fn mark_board(&mut self, mark_num: i32);
 }
 
 pub trait checkWinning {
@@ -142,7 +142,7 @@ impl GetBoardData for Board {
 }
 
 impl MarkBoard for Board {
-    fn mark_board(&mut self, mark_num: i32) -> &mut Self {
+    fn mark_board(&mut self, mark_num: i32) {
         let mut board_data = self.get_board_data();
         let marked_board_data:Vec<Vec<(i32, bool)>> = board_data.iter_mut()
             .map({|row| row.iter_mut()
@@ -156,7 +156,6 @@ impl MarkBoard for Board {
         }).collect();
         self.board_values = marked_board_data;
         self.lastMarkedNumber = mark_num;
-        self
     }
 }
 
@@ -210,7 +209,7 @@ impl calculateScore for Board  {
         let marked_board_data:Vec<Vec<(i32, bool)>> = board_data.iter_mut()
             .map({|row| row.iter_mut()
                 .map({|(num, is_marked)| {
-                    if *is_marked == true {
+                    if *is_marked == false {
                         unmarked_sum = unmarked_sum + num.clone() as i32; 
                     }            
                     (num.clone(), is_marked.clone())
@@ -224,25 +223,88 @@ impl calculateScore for Board  {
     }
 }
 
-fn run_game(data_file: &str) -> i32 {
-    let all_boards_together = get_all_boards_together(data_file).unwrap();
-    let loaded_boards = load_data_into_boards(all_boards_together);
-    let mut loaded_boards_cloned: Vec<Board> = loaded_boards.into_iter().map(|x| x.clone()).collect();
+fn run_game(loaded_boards: Vec<Board>, get_numbers_line: Vec<i32>) -> i32 {
+    // let mut loaded_boards_cloned: Vec<Board> = loaded_boards.into_iter().map(|x| x.clone()).collect();
     // let first_board_content = loaded_boards[0].get_board_data();
 
-    let get_numbers_line = get_numbers_to_draw(data_file).unwrap();
     println!("--- get_numbers_line: {:?} ", get_numbers_line);
-
     
-    let numbers_iter = get_numbers_line.iter();
+    let numbers_iter: Vec<i32> = get_numbers_line.iter().map(|x| *x).collect();
     // let mut loaded_boards_iter = loaded_boards_cloned.iter();
+
+
+    //TODO: different ways to mark boards. iterate numbers, mark, get winners and calculate score
+    //TODO: perhaps we also need to replace the board data wach time is marked
+    // idea: clone board with map to make them mut and owned
     
-    for mark_num in numbers_iter {
-        for loaded_board in loaded_boards_cloned {
-            println!("--- num iter: {:?} ", mark_num);
-            loaded_board.mark_board(*mark_num);
+    let mut boards: Vec<Board> = loaded_boards.into_iter().map(|x|x.clone()).collect();
+    // let test_mapped_loaded_boards: Vec<Board> = loaded_boards.iter().map(|board| {
+    //     let mut cloned_board = board.clone();
+    //     println!("------------------ cloned_board before mark: {:?}", cloned_board);
+    //     cloned_board.mark_board(numbers_iter[0]);
+    //     println!("------------------ cloned_board after mark: {:?}", cloned_board);
+    //     cloned_board
+    // }).collect();
+    //TODO: reorganize code to avoid the borrow issue related to getting a reference from array that is modified
+    // check this try reorganizing or wrap with Rc or RefCell or Mutex
+    // https://stackoverflow.com/questions/47618823/cannot-borrow-as-mutable-because-it-is-also-borrowed-as-immutable
+    // https://stackoverflow.com/questions/36565833/how-should-i-restructure-my-graph-code-to-avoid-an-cannot-borrow-variable-as-mu
+    //TODO: let's try with Rc type https://doc.rust-lang.org/book/ch15-04-rc.html
+    // load, then mark, then get results
+    let mut new_board_A = Board { ..Default::default() };
+    let mut new_board_B = Board { ..Default::default() };
+    let mut new_board_C = Board { ..Default::default() };
+    // load each board
+    new_board_A.board_values = boards[0].get_board_data(); 
+    new_board_B.board_values = boards[1].get_board_data(); 
+    new_board_C.board_values = boards[2].get_board_data(); 
+
+    // TODO: find a way to loop instead of manually creating new boards perhaps name with strings
+    for num in numbers_iter.iter() {
+
+        new_board_A.mark_board(*num);
+        if new_board_A.check_winning() {
+            println!("A ------is winning: {:?}", new_board_A.calculate_score());
+            new_board_A.calculate_score();
+            break;
         }
+
+        new_board_B.mark_board(*num);
+        if new_board_B.check_winning() {
+            println!("B ------is winning: {:?}", new_board_B.calculate_score());
+            break;
+
+        }
+        new_board_C.mark_board(*num);
+        if new_board_C.check_winning() {
+            println!("C ------is winning: {:?}", new_board_C.calculate_score());
+            break;
+
+        }
+        // for board in boards.iter() {
+        //     let mut cloned_board = board.clone();
+        //     println!("------------------ num {:?} ", num);
+        //     println!("------------------ board before mark: {:?}", cloned_board);
+        //     cloned_board.mark_board(*num);
+        //     println!("------------------ board after mark: {:?}", cloned_board);
+        // }
     }
+            println!("------------------ new_board_A board after mark:");
+            println!("{:?}", new_board_A);
+
+            println!("------------------ new_board_B board after mark:");
+            println!("{:?}", new_board_B);
+
+            println!("------------------ new_board_C board after mark:");
+            println!("{:?}", new_board_C);
+    
+    // for mark_num in numbers_iter {
+    //     for loaded_board in loaded_boards {
+
+    //         println!("--- num iter: {:?} ", mark_num);
+    //         loaded_board.mark_board(1);
+    //     }
+    // }
 
 
     println!("------------------ ");
@@ -261,11 +323,15 @@ mod tests {
 
     #[test]
     fn test_run_game() {
+        let data_file = "mock.txt";
+
+        let all_boards_together = get_all_boards_together(data_file).unwrap();
+        let loaded_boards = load_data_into_boards(all_boards_together);
+        let mut loaded_boards_cloned: Vec<Board> = loaded_boards.iter().map(|x| x.clone()).collect();
+        let get_numbers_line = get_numbers_to_draw(data_file).unwrap();
 
 
-        
-        
-        assert_eq!(run_game("mock.txt"), 20);
+        assert_eq!(run_game(loaded_boards_cloned, get_numbers_line), 20);
     }
 
     #[test]

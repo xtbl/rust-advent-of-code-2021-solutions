@@ -6,7 +6,6 @@
 // If all numbers in any row or any column of a board are marked, that board wins. (Diagonals don't count.)
 // automatically generates a random order in which to draw numbers and a random set of boards (your puzzle input)
 
-// TODO:
 // parse input
 //     numbers  - getNumbers
 //     boards   - getBoards
@@ -27,20 +26,17 @@
 // boardValues: Vec<Vec<(number, isMarked)>>
 
 // markBoard
-// lastMarkedNumber
+// last_marked_number
 // hasCompleteRow, hasCompleteCol
 // isWinningBoard
 
 // calculateScore
 
-use std::borrow::BorrowMut;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::io::Result;
 use std::cell::RefCell;
-// use std::str::FromStr;
-// use core::slice::RChunksExactMut;
 
 
 fn main() {
@@ -63,44 +59,24 @@ fn get_numbers_to_draw(filename: impl AsRef<Path>) -> Result<Vec<i32>> {
 fn get_all_boards_together(filename: impl AsRef<Path>) -> Result<Vec<(i32, bool)>> {
     let lines_file:Result<Vec<String>> = BufReader::new(File::open(filename)?).lines().collect();
     let lines = lines_file.unwrap();
-    // println!("-------------- lines: {:?}", lines);
     let mapped_lines_into_ints:Vec<_> = lines.into_iter().map(|current_line| {
-        // print!("-------------- current_line: {:?}", current_line);
         let split: Vec<&str> = current_line.split_whitespace().collect();
         let splitted_map: Vec<_> = split.into_iter().map(|x| x.parse::<i32>().unwrap_or(0)).collect();
         splitted_map
     }).filter(|x| x.len() == 5).collect();
-    // println!("-------------- mapped_lines_into_ints: {:?}", mapped_lines_into_ints);
     let flatten_mapped_lines_into_ints:Vec<i32> = mapped_lines_into_ints.into_iter().flat_map(|array| array.into_iter()).collect();
-    // println!("-------------- flatten_mapped_lines_into_ints: {:?}", flatten_mapped_lines_into_ints);
 
-    let mut mapped_lines_cloned: Vec<(i32, bool)> = 
+    let mapped_lines_cloned: Vec<(i32, bool)> = 
         flatten_mapped_lines_into_ints.into_iter().map(|x| (x, false)).collect::<Vec<(i32, bool)>>();
-    // println!("-------------- mapped_lines_cloned: {:?}", mapped_lines_cloned);
     Ok(mapped_lines_cloned)
 }
 
-// fn load_board_data(arg: Type) -> RetType {
-//     unimplemented!();
-// }
-
-fn board_loader(board_values: Vec<(i32, bool)>) -> Board {
-    let mut iter = board_values.rchunks(5);
-    let mut new_board = Board {
-        ..Default::default()
-    };
-    let board_content = iter.next().unwrap();
-    new_board.load_board_data(board_content.to_vec());
-    new_board
-}
 
 #[derive(Debug, Default, Clone)]
 struct Board {
     board_values: Vec<Vec<(i32, bool)>>,
-    has_complete_row: bool,
     has_complete_col: bool,
-    is_winning_board: bool,
-    lastMarkedNumber: i32
+    last_marked_number: i32
 }
 
 pub trait LoadBoardData {
@@ -115,11 +91,11 @@ pub trait MarkBoard {
     fn mark_board(&mut self, mark_num: i32);
 }
 
-pub trait checkWinning {
+pub trait CheckWinning {
     fn check_winning(&self) -> bool;
 }
 
-pub trait calculateScore {
+pub trait CalculateScore {
     fn calculate_score(&self) -> i32;
 }
 
@@ -157,11 +133,11 @@ impl MarkBoard for Board {
             }).collect()
         }).collect();
         self.board_values = marked_board_data;
-        self.lastMarkedNumber = mark_num;
+        self.last_marked_number = mark_num;
     }
 }
 
-impl checkWinning for Board {
+impl CheckWinning for Board {
     fn check_winning(&self) -> bool {
         let board_data = &self.get_board_data();
         let mut winning_row = false;
@@ -177,11 +153,6 @@ impl checkWinning for Board {
           for row in 0..5 {
             let mut build_column:Vec<bool> = vec![];
             for col in 0..5 {
-                // println!("COL {:?}", col);
-                // println!("ROW {:?}", row);
-                // println!("-------------- BOARD DATA");
-                // println!("{:?}", board_data_2);
-                // println!("-------------- BOARD DATA");
                 if board_data_2.is_empty() {
                     println!("check winning: board is empty");
                     break;
@@ -199,7 +170,7 @@ impl checkWinning for Board {
 
 fn load_data_into_boards(boards_data: Vec<(i32, bool)>) -> Vec<Board> {
     let full_board_item_amount = 25;
-    let mut iter_boards_data = boards_data.chunks(full_board_item_amount);
+    let iter_boards_data = boards_data.chunks(full_board_item_amount);
     let mapped_boards: Vec<Board> = iter_boards_data.map(|board_data| {
         let mut new_board = Board {
             ..Default::default()
@@ -207,13 +178,11 @@ fn load_data_into_boards(boards_data: Vec<(i32, bool)>) -> Vec<Board> {
         new_board.load_board_data(board_data.to_vec());
         new_board
     }).collect();
-    println!("--------- mapped_boards {:?}", mapped_boards);
-
     mapped_boards
 }
 
 
-impl calculateScore for Board  {
+impl CalculateScore for Board  {
     fn calculate_score (&self) -> i32 {
         let mut board_data = self.get_board_data();
         let mut unmarked_sum = 0;
@@ -227,69 +196,40 @@ impl calculateScore for Board  {
                 }
                 }).collect()
             }).collect();
-        let last_number = self.lastMarkedNumber;
-        println!("unmarked_sum: {:?}", unmarked_sum);
-        println!("last_number: {:?}", last_number);
+        let last_number = self.last_marked_number;
         unmarked_sum * last_number
     }
 }
 
 fn run_game(loaded_boards: Vec<Board>, get_numbers_line: Vec<i32>) -> i32 {
-    // let mut loaded_boards_cloned: Vec<Board> = loaded_boards.into_iter().map(|x| x.clone()).collect();
-    // let first_board_content = loaded_boards[0].get_board_data();
 
-    println!("--- get_numbers_line: {:?} ", get_numbers_line);
-    
     let numbers_iter: Vec<i32> = get_numbers_line.iter().map(|x| *x).collect();
-    // let mut loaded_boards_iter = loaded_boards_cloned.iter();
 
-
-    //TODO: different ways to mark boards. iterate numbers, mark, get winners and calculate score
-    //TODO: perhaps we also need to replace the board data wach time is marked
-    // idea: clone board with map to make them mut and owned
-    
-    // let mut boards: Vec<Board> = loaded_boards.into_iter().map(|x|x.clone()).collect();
-
-    // --------- ref cell test area
-    let mut ref_boards: Vec<RefCell<Board>> = loaded_boards.into_iter().map(|x| {
+    let ref_boards: Vec<RefCell<Board>> = loaded_boards.into_iter().map(|x| {
             RefCell::new(x.clone())
 
     } ).collect();
-    let mut counter = 0;
+    let counter = 0;
     let boards_amount = ref_boards.len();
-    println!("ref_boards.len() ------ ---------- ----------- --------: {:?}", ref_boards.len());
-
-    // TODO: parece que hay que mover el contenido de current board al board interno? porque el error de 180
-    // parece ser que es porque no tiene data ahi. luego hacer que funcione el loop por boards amount
-        // how to create dynamically n objects current_board for each 
-    // let current_board = ref_boards.get(0).unwrap();
-
-    // TODO: looks like checkWinning fails. why? perhaps it's empty due to not mutating
-
-
-    println!("--- numbers_iter: {:?} ", numbers_iter);
 
     let mut a_board_won = false;
+    let mut score = 0;
 
     for num in numbers_iter.iter() {
         for board_index in counter..boards_amount {
 
-        //     println!("------ ---------- ----------- -------- CURRENT BOARD IS: {:?}", board_index);
             println!("------ ---------- ----------- -------- NUMBER IS: {:?}", num);
             let current_board = &ref_boards[board_index];
-        //     println!("ref boards ------ ---------- ----------- --------");
             current_board.borrow_mut().mark_board(*num);
-
             if current_board.borrow_mut().check_winning() {
                 current_board.borrow_mut().calculate_score();
 
                 println!(">>>>>>>>>>>>>>>>>>>>>>>>> is winning: {:?}", current_board);
                 println!("[[[[[[[[[[[[[[[[[[[[[[[[[ score: {:?}", current_board.borrow_mut().calculate_score());
+                score = current_board.borrow_mut().calculate_score();
                 a_board_won = true;
                 break;
             }
-        //     counter =  counter + 1;
-        //     // println!("counter ------ ---------- ----------- --------: {:?}", board_index);
         }
         if a_board_won {
             break;
@@ -301,80 +241,7 @@ fn run_game(loaded_boards: Vec<Board>, get_numbers_line: Vec<i32>) -> i32 {
     println!("{:?}", ref_boards);
     println!("ref boards ------ ---------- ----------- --------");
 
-    // --------- ref cell test area
-
-    // let test_mapped_loaded_boards: Vec<Board> = loaded_boards.iter().map(|board| {
-    //     let mut cloned_board = board.clone();
-    //     println!("------------------ cloned_board before mark: {:?}", cloned_board);
-    //     cloned_board.mark_board(numbers_iter[0]);
-    //     println!("------------------ cloned_board after mark: {:?}", cloned_board);
-    //     cloned_board
-    // }).collect();
-    //TODO: reorganize code to avoid the borrow issue related to getting a reference from array that is modified
-    // check this try reorganizing or wrap with Rc or RefCell or Mutex
-    // https://stackoverflow.com/questions/47618823/cannot-borrow-as-mutable-because-it-is-also-borrowed-as-immutable
-    // https://stackoverflow.com/questions/36565833/how-should-i-restructure-my-graph-code-to-avoid-an-cannot-borrow-variable-as-mu
-    //TODO: let's try with Rc type https://doc.rust-lang.org/book/ch15-04-rc.html
-    // do this search: rust mutate vector while iterating
-    // load, then mark, then get results
-    // let mut new_board_A = Board { ..Default::default() };
-    // let mut new_board_B = Board { ..Default::default() };
-    // let mut new_board_C = Board { ..Default::default() };
-    // load each board
-    // new_board_A.board_values = boards[0].get_board_data(); 
-    // new_board_B.board_values = boards[1].get_board_data(); 
-    // new_board_C.board_values = boards[2].get_board_data(); 
-
-    // TODO: find a way to loop instead of manually creating new boards perhaps name with strings
-    // for num in numbers_iter.iter() {
-
-    //     new_board_A.mark_board(*num);
-    //     if new_board_A.check_winning() {
-    //         println!("A ------is winning: {:?}", new_board_A.calculate_score());
-    //         new_board_A.calculate_score();
-    //         break;
-    //     }
-
-    //     new_board_B.mark_board(*num);
-    //     if new_board_B.check_winning() {
-    //         println!("B ------is winning: {:?}", new_board_B.calculate_score());
-    //         break;
-
-    //     }
-    //     new_board_C.mark_board(*num);
-    //     if new_board_C.check_winning() {
-    //         println!("C ------is winning: {:?}", new_board_C.calculate_score());
-    //         break;
-
-    //     }
-        // for board in boards.iter() {
-        //     let mut cloned_board = board.clone();
-        //     println!("------------------ num {:?} ", num);
-        //     println!("------------------ board before mark: {:?}", cloned_board);
-        //     cloned_board.mark_board(*num);
-        //     println!("------------------ board after mark: {:?}", cloned_board);
-        // }
-    // }
-            // println!("------------------ new_board_A board after mark:");
-            // println!("{:?}", new_board_A);
-
-            // println!("------------------ new_board_B board after mark:");
-            // println!("{:?}", new_board_B);
-
-            // println!("------------------ new_board_C board after mark:");
-            // println!("{:?}", new_board_C);
-    
-    // for mark_num in numbers_iter {
-    //     for loaded_board in loaded_boards {
-
-    //         println!("--- num iter: {:?} ", mark_num);
-    //         loaded_board.mark_board(1);
-    //     }
-    // }
-
-
-    // println!("--- loaded_boards: {:?} ", loaded_boards_cloned);
-    10
+    score
 }
 
 
@@ -384,19 +251,17 @@ fn run_game(loaded_boards: Vec<Board>, get_numbers_line: Vec<i32>) -> i32 {
 mod tests {
     use super::*;
 
-//TODO: get numbers and compare with boards, mark boards, check if winning
-
     #[test]
     fn test_run_game() {
-        let data_file = "mock.txt";
+        let data_file = "input.txt";
 
         let all_boards_together = get_all_boards_together(data_file).unwrap();
         let loaded_boards = load_data_into_boards(all_boards_together);
-        let mut loaded_boards_cloned: Vec<Board> = loaded_boards.iter().map(|x| x.clone()).collect();
+        let loaded_boards_cloned: Vec<Board> = loaded_boards.iter().map(|x| x.clone()).collect();
         let get_numbers_line = get_numbers_to_draw(data_file).unwrap();
 
 
-        assert_eq!(run_game(loaded_boards_cloned, get_numbers_line), 20);
+        assert_eq!(run_game(loaded_boards_cloned, get_numbers_line), 44736);
     }
 
     #[test]
@@ -412,9 +277,8 @@ mod tests {
             (1, false), (1, false),(1, false),(1, false),(1, false),
             (1, false), (1, false),(1, false),(1, false),(1, false)]);
         
-        new_board.lastMarkedNumber = 2;
+        new_board.last_marked_number = 2;
 
-        // 30 * last number marked
         assert_eq!(new_board.calculate_score(), 20);
     }
 
@@ -425,7 +289,6 @@ mod tests {
         let mut new_board = Board {
             ..Default::default()
         };
-        // row
         new_board.load_board_data(vec![
             (0, false), (0, false),(0, false),(0, false),(0, false),
             (1, false), (1, false),(1, false),(1, false),(1, false),
@@ -520,9 +383,6 @@ mod tests {
     fn test_get_all_boards_together() {
         let all_boards_together = get_all_boards_together("mock.txt");
         let all_boards_together_unwrap = all_boards_together.unwrap();
-        // let expected_result = [(22, false), (8, false), (21, false), (6, false), (1, false), (3, false), (9, false), (19, false), (20, false), (14, false), (14, false), (10, false), (18, false), (22, false), (2, false)];
-        // let expected_result = [(22, false), (13, false), (17, false), (11, false), (0, false), (8, false), (2, false), (23, false), (4, false), (24, false), (21, false), (9, false), (14, false), (16, false), (7, false), (6, false), (10, false), (3, false),(18, false),(5, false), 
-        //     (1, false), (12, false), (20, false), (15, false), (19, false)];
          let expected_result = [(22, false), (13, false), (17, false), (11, false), (0, false), (8, false), (2, false), (23, false), (4, false), (24, false), (21, false), (9, false), (14, false), (16, false), (7, false), (6, false), (10, false), (3, false), (18, false), (5, false), (1, false), (12, false), (20, false), (15, false), (19, false), (3, false), (15, false), (0, false), (2, false), (22, false), (9, false), (18, false), (13, false), (17, false), (5, false), (19, false), (8, false), (7, false), (25, false), (23, false), (20, false), (11, false), (10, false), (24, false), (4, false), (14, false), (21, false), (16, false), (12, false), (6, false), (14, false), (21, false), (17, false), (24, false), (4, false), (10, false), (16, false), (15, false), (9, false), (19, false), (18, false), (8, false), (23, false), (26, false), (20, false), (22, false), (11, false), (13, false), (6, false), (5, false), (2, false), (0, false), (12, false), (3, false), (7, false)];
         assert_eq!(all_boards_together_unwrap, expected_result);
     }

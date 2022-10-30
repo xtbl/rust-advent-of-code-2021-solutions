@@ -76,7 +76,8 @@ fn get_all_boards_together(filename: impl AsRef<Path>) -> Result<Vec<(i32, bool)
 struct Board {
     board_values: Vec<Vec<(i32, bool)>>,
     has_complete_col: bool,
-    last_marked_number: i32
+    last_marked_number: i32,
+    is_winning: bool
 }
 
 pub trait LoadBoardData {
@@ -218,14 +219,10 @@ fn run_game(loaded_boards: Vec<Board>, get_numbers_line: Vec<i32>) -> i32 {
     for num in numbers_iter.iter() {
         for board_index in counter..boards_amount {
 
-            println!("------ ---------- ----------- -------- NUMBER IS: {:?}", num);
             let current_board = &ref_boards[board_index];
             current_board.borrow_mut().mark_board(*num);
             if current_board.borrow_mut().check_winning() {
                 current_board.borrow_mut().calculate_score();
-
-                println!(">>>>>>>>>>>>>>>>>>>>>>>>> is winning: {:?}", current_board);
-                println!("[[[[[[[[[[[[[[[[[[[[[[[[[ score: {:?}", current_board.borrow_mut().calculate_score());
                 score = current_board.borrow_mut().calculate_score();
                 a_board_won = true;
                 break;
@@ -234,13 +231,33 @@ fn run_game(loaded_boards: Vec<Board>, get_numbers_line: Vec<i32>) -> i32 {
         if a_board_won {
             break;
         }
-
     }
+    score
+}
 
-    println!("ref boards ------ ---------- ----------- --------");
-    println!("{:?}", ref_boards);
-    println!("ref boards ------ ---------- ----------- --------");
+fn run_game_win_last(loaded_boards: Vec<Board>, get_numbers_line: Vec<i32>) -> i32 {
+    let numbers_iter: Vec<i32> = get_numbers_line.iter().map(|x| *x).collect();
+    let ref_boards: Vec<RefCell<Board>> = loaded_boards.into_iter().map(|x| {
+            RefCell::new(x.clone())
+    }).collect();
 
+    let boards_amount = ref_boards.len();
+    let mut score = 0;
+    let mut amount_of_winning_boards = 0;
+    let counter = 0;
+
+    for num in numbers_iter.iter() {
+        for board_index in counter..boards_amount {
+            let current_board = &ref_boards[board_index];
+            if current_board.borrow_mut().check_winning() {
+                current_board.borrow_mut().is_winning = true;
+                amount_of_winning_boards = amount_of_winning_boards + 1;
+            } else {
+                current_board.borrow_mut().mark_board(*num);
+                score = current_board.borrow_mut().calculate_score();
+            }
+        }
+    }
     score
 }
 
@@ -251,9 +268,21 @@ fn run_game(loaded_boards: Vec<Board>, get_numbers_line: Vec<i32>) -> i32 {
 mod tests {
     use super::*;
 
+
+    #[test]
+    fn test_run_game_win_last() {
+        let data_file = "mock.txt";
+
+        let all_boards_together = get_all_boards_together(data_file).unwrap();
+        let loaded_boards = load_data_into_boards(all_boards_together);
+        let loaded_boards_cloned: Vec<Board> = loaded_boards.iter().map(|x| x.clone()).collect();
+        let get_numbers_line = get_numbers_to_draw(data_file).unwrap();
+        assert_eq!(run_game_win_last(loaded_boards_cloned, get_numbers_line), 1924);
+    }
+
     #[test]
     fn test_run_game() {
-        let data_file = "input.txt";
+        let data_file = "mock.txt";
 
         let all_boards_together = get_all_boards_together(data_file).unwrap();
         let loaded_boards = load_data_into_boards(all_boards_together);
@@ -261,7 +290,10 @@ mod tests {
         let get_numbers_line = get_numbers_to_draw(data_file).unwrap();
 
 
-        assert_eq!(run_game(loaded_boards_cloned, get_numbers_line), 44736);
+        // full input
+        // assert_eq!(run_game(loaded_boards_cloned, get_numbers_line), 44736);
+        // mock
+        assert_eq!(run_game(loaded_boards_cloned, get_numbers_line), 4512);
     }
 
     #[test]

@@ -49,6 +49,7 @@ struct Line {
 }
 
 type PointList = HashMap<Point, i32>;
+type LineList = Vec<Line>;
 
 fn convert_parsed_line_into_line(parsed_line: Vec<&str>) -> Line {
     let point_a = convert_input_into_point(&String::from(parsed_line[0]));
@@ -80,18 +81,38 @@ fn get_input_file_name() -> &'static str {
   "mock.txt"
 }
 
+//TODO: fix this to do be immutable, clone and add the point
+// https://stackoverflow.com/a/57650844/618934
 fn add_point_to_hashmap(point: Point, point_list: &PointList) -> PointList {
     let mut updated_point_list: PointList = HashMap::new(); 
     updated_point_list.insert(point, 1);
     updated_point_list
 }
 
-
+fn convert_all_input_into_lines(all_lines: Vec<String>) -> LineList {
+    all_lines.into_iter().map(|string_line| {
+        let parsed_line = parse_line(&string_line);
+        convert_parsed_line_into_line(parsed_line)
+    }).collect()
+}
 
 #[cfg(test)]
 mod tests {
 
     use super::*;
+
+    #[test]
+    fn test_convert_all_input_into_lines() {
+        let lines = match get_lines_from_file(get_input_file_name()) {
+            Ok(line) => line,
+            Err(error) => panic!("Error getting line {:?}", error),
+        };
+        let lines_from_input = convert_all_input_into_lines(lines);
+
+        let first_line = &lines_from_input[0 as usize];
+        let expected_line = Line { a: Point { x: 0, y: 9 }, b: Point { x: 5, y: 9 } };
+        assert_eq!(&expected_line, first_line);
+    }
 
     #[test]
     fn test_add_points_to_hashmap() {

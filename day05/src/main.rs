@@ -36,7 +36,7 @@ fn main() {
     println!("Hydrothermal Venture");
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Point {
     x: i32,
     y: i32,
@@ -81,12 +81,21 @@ fn get_input_file_name() -> &'static str {
   "mock.txt"
 }
 
-//TODO: fix this to do be immutable, clone and add the point
-// https://stackoverflow.com/a/57650844/618934
 fn add_point_to_hashmap(point: Point, point_list: &PointList) -> PointList {
-    let mut updated_point_list: PointList = HashMap::new(); 
-    updated_point_list.insert(point, 1);
-    updated_point_list
+    // let mut point_list_copy: PointList = point_list.into_iter().map(|(k,v)| { (*k,*v) }).collect();
+    let mut point_list_clone: PointList = PointList::new();
+    point_list_clone.clone_from(point_list);
+    if point_list_clone.contains_key(&point) {
+        println!("--- CONTAINS KEY: {:?}", &point);
+        let current_value_in_point = match point_list_clone.get(&point) {
+            Some(value_in_point) => value_in_point,
+            None => panic!("Error getting Point from PointList"),
+        };
+        point_list_clone.insert(point, current_value_in_point + 1);
+    } else {
+        point_list_clone.insert(point, 1);
+    }
+    point_list_clone
 }
 
 fn convert_all_input_into_lines(all_lines: Vec<String>) -> LineList {
@@ -120,7 +129,15 @@ mod tests {
         let empty_point_list: PointList = HashMap::new(); 
         let mut expected_point_list: PointList = HashMap::new(); 
         expected_point_list.insert(Point{x: 1, y: 3}, 1);
-        let updated_list = add_point_to_hashmap(point, &empty_point_list);
+        let mut updated_list = add_point_to_hashmap(point, &empty_point_list);
+
+        assert_eq!(expected_point_list, updated_list);
+
+        updated_list.insert(Point{x: 2, y: 1}, 2);
+        let point2 = Point{x: 2, y: 1};
+        let updated_list = add_point_to_hashmap(point2, &updated_list);
+        expected_point_list.insert(Point{x: 2, y: 1}, 3);
+
         assert_eq!(expected_point_list, updated_list);
     }
 

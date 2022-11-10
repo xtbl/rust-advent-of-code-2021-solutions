@@ -31,6 +31,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::io::Result;
+use std::cmp::Ordering;
 
 fn main() {
     println!("Hydrothermal Venture");
@@ -87,14 +88,12 @@ fn add_point_to_hashmap(point: Point, point_list: &PointList) -> PointList {
     point_list_clone.clone_from(point_list);
     if point_list_clone.contains_key(&point) {
         println!("--- CONTAINS KEY: {:?}", &point);
-        let current_value_in_point = match point_list_clone.get(&point) {
-            Some(value_in_point) => value_in_point,
-            None => panic!("Error getting Point from PointList"),
-        };
-        point_list_clone.insert(point, current_value_in_point + 1);
+        point_list_clone.insert(point, point_list_clone.get(&point).unwrap_or(&1).to_owned() + 1);
     } else {
         point_list_clone.insert(point, 1);
     }
+
+    println!("--- point_list_clone: {:?}", point_list_clone);
     point_list_clone
 }
 
@@ -105,10 +104,93 @@ fn convert_all_input_into_lines(all_lines: Vec<String>) -> LineList {
     }).collect()
 }
 
+//TODO: get line
+// convert into point list
+// find x1, x2, get intermediate points between them: which is highest - lowest
+// create points
+// add x scenarios, y scenarios
+// consider moving it to a method https://doc.rust-lang.org/rust-by-example/fn/methods.html
+fn convert_line_into_point_list(line: Line) -> PointList {
+    // get x1 and x2
+    let x1 = line.a.x;
+    let x2 = line.b.x;
+    let y1 = line.a.y;
+    let y2 = line.b.y;
+    
+    #[derive(Debug)]
+    enum LineOrientation {
+        Horizontal,
+        Vertical,
+        None
+    }
+
+    let line_orientation = match line {
+        _l if x1 == x2 && y1 != y2 => LineOrientation::Vertical,
+        _l if y1 == y2 && x1 != x2 => LineOrientation::Horizontal,
+        _ => LineOrientation::None,
+    };
+
+    // return diff according to comparison result
+    // we can return a range array then map Points into it
+    // https://doc.rust-lang.org/std/ops/struct.Range.html
+    let range_x = match x1.cmp(&x2) {
+        Ordering::Less => x1..=x2,
+        Ordering::Equal => x1..=x1,
+        Ordering::Greater => x2..=x1,
+    };
+    let range_y = match y1.cmp(&y2) {
+        Ordering::Less => y1..=y2,
+        Ordering::Equal => y1..=y1,
+        Ordering::Greater => y2..=y1,
+    };
+    
+    println!("********** orientation {:?}", line_orientation);
+    println!("********** range_x {:?}", range_x);
+    println!("********** range_y {:?}", range_y);
+    // let x_range_points: PointList = range_x.map(|range|{
+    //     Point { x: range, y: 9 }
+    // }).collect();
+    // TODO: change this to line_range to make more generic by line_orientation
+
+    let mut x_range_points = PointList::new();
+    for range_x_item in range_x {
+        println!("********** range_x {:?}", range_x_item);
+        x_range_points.insert(Point { x: range_x_item, y: y1 }, 1);
+    }
+
+
+    let mut points_result = PointList::new();
+    points_result.insert(Point { x: 0, y: 9 }, 1);
+    points_result.insert(Point { x: 1, y: 9 }, 1);
+
+    // assert_eq!(x_range_points, points_result , "-_-_-_-_ comparison");
+    // assert_eq!(x1, x2, "-_-_-_-_ x1, x2 is not true");
+    // assert_eq!(x1, x2, "-_-_-_-_ y1, y2 is not true");
+    x_range_points
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
+
+    //TODO: convert_all_input_into_lines, filter Lines, convert Lines into individual Points, then 
+    // add_point_to_hashmap
+    #[test]
+    fn test_convert_line_into_point_list() {
+        let line = Line { a: Point { x: 0, y: 9 }, b: Point { x: 5, y: 9 } };
+        let mut expected_point_list: PointList = PointList::from([
+            (Point { x: 0, y: 9 }, 1),
+            (Point { x: 1, y: 9 }, 1),
+            (Point { x: 2, y: 9 }, 1),
+            (Point { x: 3, y: 9 }, 1),
+            (Point { x: 4, y: 9 }, 1),
+            (Point { x: 5, y: 9 }, 1)
+        ]);
+        let mut points_result = convert_line_into_point_list(line);
+
+        assert_eq!(expected_point_list, points_result);
+    }
 
     #[test]
     fn test_convert_all_input_into_lines() {

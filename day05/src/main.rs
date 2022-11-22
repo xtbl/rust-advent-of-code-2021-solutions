@@ -43,7 +43,7 @@ struct Point {
     y: i32,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 struct Line {
     a: Point,
     b: Point,
@@ -121,13 +121,13 @@ fn convert_line_into_point_list(line: Line) -> PointList {
     enum LineOrientation {
         Horizontal,
         Vertical,
-        None
+        NotClear
     }
 
     let line_orientation = match line {
         _l if x1 == x2 && y1 != y2 => LineOrientation::Vertical,
         _l if y1 == y2 && x1 != x2 => LineOrientation::Horizontal,
-        _ => LineOrientation::None,
+        _ => LineOrientation::NotClear,
     };
 
     // return diff according to comparison result
@@ -143,43 +143,133 @@ fn convert_line_into_point_list(line: Line) -> PointList {
         Ordering::Equal => y1..=y1,
         Ordering::Greater => y2..=y1,
     };
+    let range_none = 0..=0;
     
     println!("********** orientation {:?}", line_orientation);
     println!("********** range_x {:?}", range_x);
     println!("********** range_y {:?}", range_y);
-    // let x_range_points: PointList = range_x.map(|range|{
-    //     Point { x: range, y: 9 }
-    // }).collect();
-    // TODO: change this to line_range to make more generic by line_orientation
+
+    let line_range = match line_orientation {
+        LineOrientation::Horizontal => range_x,
+        LineOrientation::Vertical => range_y,
+        LineOrientation::NotClear => range_none,
+    };
 
     let mut x_range_points = PointList::new();
-    for range_x_item in range_x {
-        println!("********** range_x {:?}", range_x_item);
+    for range_x_item in line_range.clone() {
+        // println!("********** range_x {:?}", range_x_item);
         x_range_points.insert(Point { x: range_x_item, y: y1 }, 1);
     }
 
+    let mut y_range_points = PointList::new();
+    for range_y_item in line_range.clone() {
+        // println!("********** range_y_item {:?}", range_y_item);
 
-    let mut points_result = PointList::new();
-    points_result.insert(Point { x: 0, y: 9 }, 1);
-    points_result.insert(Point { x: 1, y: 9 }, 1);
+        y_range_points.insert(Point { x: x1, y: range_y_item }, 1);
+    }
+    // println!("---- y_range_points {:?}", y_range_points);
+    // println!("---- line_range.clone() {:?}", line_range.clone());
+    // println!("---- line_orientation {:?}", line_orientation);
 
-    // assert_eq!(x_range_points, points_result , "-_-_-_-_ comparison");
-    // assert_eq!(x1, x2, "-_-_-_-_ x1, x2 is not true");
-    // assert_eq!(x1, x2, "-_-_-_-_ y1, y2 is not true");
-    x_range_points
+    let range_points_result = match line_orientation {
+        LineOrientation::Horizontal => x_range_points,
+        LineOrientation::Vertical => y_range_points.clone(),
+        LineOrientation::NotClear => PointList::new(),
+    };
+
+    // println!("---------- line_range.clone {:?}", line_range.clone());
+    // println!("---------- line_orientation {:?}", line_orientation);
+    // println!("---------- range_points_result {:?}", range_points_result);
+
+    range_points_result
+}
+
+
+// TODO: check if point is already set and increment accordingly 
+// https://stackoverflow.com/questions/30414424/how-can-i-update-a-value-in-a-mutable-hashmap
+fn add_line_to_diagram(diagram: &PointList, line: &Line) -> PointList {
+    let mut new_diagram = PointList::new();
+    for (k,v) in diagram.into_iter() {
+        new_diagram.insert(*k,*v);
+    }
+    let line_as_point_list = convert_line_into_point_list(line.clone());
+    for (k,v) in line_as_point_list.into_iter() {
+        let increment = match new_diagram.get(&k){
+            Some(value) => value,
+            None => &0,
+        };
+        new_diagram.insert(k,v + increment);
+    }
+
+    new_diagram
 }
 
 #[cfg(test)]
 mod tests {
 
     use super::*;
+    use pretty_assertions::{assert_eq, assert_ne};
+
+
 
     //TODO: convert_all_input_into_lines, filter Lines, convert Lines into individual Points, then 
     // add_point_to_hashmap
+    // add more tests
+    #[test]
+    fn test_add_all_lines_to_diagram() {
+        // let lines = match get_lines_from_file(get_input_file_name()) {
+        //     Ok(line) => line,
+        //     Err(error) => panic!("Error getting line {:?}", error),
+        // };
+
+        // let mut expected_point_list: PointList = PointList::from([
+        //     (Point { x: 0, y: 0 }, 1),
+        //     (Point { x: 0, y: 1 }, 2),
+        // ]);
+        // let expected_point_value = expected_point_list.get(&Point { x: 0, y: 1 }).unwrap();
+        // println!("expected_point {:?}", expected_point_value);
+        // let line = lines.get(&Point { x: 0, y: 1 }).unwrap();
+
+        // let diagram = add_all_lines_to_diagram(&diagram, &lines);
+        // let diagram_point =  diagram.get(&Point { x: 0, y: 1 }).unwrap();
+        // assert_eq!(*expected_point_value, diagram_point);
+    }
+
+
+    #[test]
+    fn test_add_line_to_diagram() {
+        let mut diagram = PointList::new();
+        let line_01 = Line { a: Point { x: 0, y: 0 }, b: Point { x: 0, y: 2 } };
+        let line_02 = Line { a: Point { x: 0, y: 1 }, b: Point { x: 3, y: 1 } };
+        let expected_point_list_01: PointList = PointList::from([
+            (Point { x: 0, y: 0 }, 1),
+            (Point { x: 0, y: 1 }, 1),
+            (Point { x: 0, y: 2 }, 1),
+        ]);
+        let diagram = add_line_to_diagram(&diagram, &line_01);
+
+        assert_eq!(expected_point_list_01, diagram);
+
+
+        let mut expected_point_list_02: PointList = PointList::from([
+            (Point { x: 0, y: 0 }, 0),
+            (Point { x: 0, y: 1 }, 2),
+            (Point { x: 0, y: 2 }, 1),
+            (Point { x: 1, y: 1 }, 1),
+            (Point { x: 2, y: 1 }, 1),
+            (Point { x: 3, y: 1 }, 1),
+        ]);
+        println!("expected_point_list_02 {:?}", expected_point_list_02);
+        let diagram = add_line_to_diagram(&diagram, &line_02);
+        
+        assert_eq!(expected_point_list_02, diagram);
+    }
+
+
     #[test]
     fn test_convert_line_into_point_list() {
         let line = Line { a: Point { x: 0, y: 9 }, b: Point { x: 5, y: 9 } };
-        let mut expected_point_list: PointList = PointList::from([
+        let expected_point_list: PointList = PointList::from([
             (Point { x: 0, y: 9 }, 1),
             (Point { x: 1, y: 9 }, 1),
             (Point { x: 2, y: 9 }, 1),
@@ -187,9 +277,32 @@ mod tests {
             (Point { x: 4, y: 9 }, 1),
             (Point { x: 5, y: 9 }, 1)
         ]);
-        let mut points_result = convert_line_into_point_list(line);
+        let points_result = convert_line_into_point_list(line);
 
         assert_eq!(expected_point_list, points_result);
+
+        let line_y = Line { a: Point { x: 2, y: 9 }, b: Point { x: 2, y: 2 } };
+        let expected_point_list_y: PointList = PointList::from([
+            (Point { x: 2, y: 2 }, 1),
+            (Point { x: 2, y: 3 }, 1),
+            (Point { x: 2, y: 4 }, 1),
+            (Point { x: 2, y: 5 }, 1),
+            (Point { x: 2, y: 6 }, 1),
+            (Point { x: 2, y: 7 }, 1),
+            (Point { x: 2, y: 8 }, 1),
+            (Point { x: 2, y: 9 }, 1),
+        ]);
+        let points_result_y = convert_line_into_point_list(line_y);
+
+        assert_eq!(expected_point_list_y, points_result_y);
+
+
+        let line_diagonal = Line { a: Point { x: 3, y: 1 }, b: Point { x: 2, y: 2 } };
+        let expected_point_list_diagonal: PointList = PointList::new();
+
+        let points_result_diagonal = convert_line_into_point_list(line_diagonal);
+        assert_eq!(expected_point_list_diagonal, points_result_diagonal);
+
     }
 
     #[test]

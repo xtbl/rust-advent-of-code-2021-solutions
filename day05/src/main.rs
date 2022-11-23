@@ -204,35 +204,42 @@ fn add_line_to_diagram(diagram: &PointList, line: &Line) -> PointList {
     new_diagram
 }
 
+// TODO: adds 1 line, now add all lines into diagram
+fn add_all_lines_to_diagram(diagram: &PointList, lines: &Vec<Line>) -> PointList {
+    let line = lines[0 as usize];
+    println!("--- line 0 in add all lines {:?}", line);
+    let diagram = add_line_to_diagram(diagram, &line);
+    diagram.to_owned()
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
 
-
-
     //TODO: convert_all_input_into_lines, filter Lines, convert Lines into individual Points, then 
-    // add_point_to_hashmap
-    // add more tests
     #[test]
     fn test_add_all_lines_to_diagram() {
-        // let lines = match get_lines_from_file(get_input_file_name()) {
-        //     Ok(line) => line,
-        //     Err(error) => panic!("Error getting line {:?}", error),
-        // };
+        let lines = match get_lines_from_file(get_input_file_name()) {
+            Ok(line) => line,
+            Err(error) => panic!("Error getting line {:?}", error),
+        };
+        let lines_from_input = convert_all_input_into_lines(lines);
+        println!("--- lines_from_input {:?}", lines_from_input);
+        let diagram = PointList::new();
 
-        // let mut expected_point_list: PointList = PointList::from([
-        //     (Point { x: 0, y: 0 }, 1),
-        //     (Point { x: 0, y: 1 }, 2),
-        // ]);
-        // let expected_point_value = expected_point_list.get(&Point { x: 0, y: 1 }).unwrap();
-        // println!("expected_point {:?}", expected_point_value);
-        // let line = lines.get(&Point { x: 0, y: 1 }).unwrap();
+        let mut expected_point_list: PointList = PointList::from([
+            (Point { x: 0, y: 0 }, 1),
+            (Point { x: 0, y: 1 }, 2),
+        ]);
+        let expected_point_value = expected_point_list.get(&Point { x: 0, y: 1 }).unwrap();
 
         // let diagram = add_all_lines_to_diagram(&diagram, &lines);
-        // let diagram_point =  diagram.get(&Point { x: 0, y: 1 }).unwrap();
-        // assert_eq!(*expected_point_value, diagram_point);
+        let all_lines_into_diagram = add_all_lines_to_diagram(&diagram, &lines_from_input);
+        println!("--- all_lines_into_diagram {:?}", all_lines_into_diagram);
+        let diagram_point =  diagram.get(&Point { x: 0, y: 9 }).unwrap();
+        assert_eq!(expected_point_value, diagram_point);
     }
 
 
